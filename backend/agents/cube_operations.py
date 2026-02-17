@@ -1,7 +1,8 @@
 """
 Cube Operations Agent: slice (single dimension), dice (multiple), pivot (reorganize).
+Supports HAVING (e.g. revenue > 500) for filter queries.
 """
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from database.connection import get_connection
 
@@ -45,7 +46,12 @@ def _normalize_filters(filters: Dict[str, Any]) -> Dict[str, Any]:
     return out
 
 
-def _build_fact_query(filters: Dict[str, Any], measure: str, group_by_dims: List[str]) -> tuple:
+def _build_fact_query(
+    filters: Dict[str, Any],
+    measure: str,
+    group_by_dims: List[str],
+    having_min: Optional[float] = None,
+) -> tuple:
     select_parts = []
     group_parts = []
     for d in group_by_dims:
@@ -73,6 +79,9 @@ def _build_fact_query(filters: Dict[str, Any], measure: str, group_by_dims: List
     where_sql = " AND ".join(where_parts)
     where_sql = ("WHERE " + where_sql) if where_sql else ""
     group_sql = "GROUP BY " + ", ".join(group_parts) if group_parts else ""
+    having_sql = ""
+    if having_min is not None and group_parts:
+        having_sql = f" HAVING SUM(fs.{measure}) > {float(having_min)}"
     sql = f"""
         SELECT {select_sql}
         FROM fact_sales fs
@@ -82,6 +91,7 @@ def _build_fact_query(filters: Dict[str, Any], measure: str, group_by_dims: List
         JOIN dim_customer dc ON fs.customer_id = dc.customer_id
         {where_sql}
         {group_sql}
+        {having_sql}
     """
     return sql, params
 
@@ -98,8 +108,10 @@ class CubeOperationsAgent(BaseAgent):
             raise ValueError("operation must be slice, dice, or pivot")
 
         if operation in ("slice", "dice"):
-            group_dims = params.get("group_by") or list(filters.keys()) or []
-            sql, par = _build_fact_query(filters, measure, group_dims)
+            # Respect explicit group_by=[] for global aggregate (one total row)
+            group_dims = params.get("group_by") if "group_by" in params else (list(filters.keys()) or ["region"])
+            having_min = params.get("having_min")
+            sql, par = _build_fact_query(filters, measure, group_dims, having_min=having_min)
             con = get_connection()
             rows = con.execute(sql, par).fetchall()
             cols = group_dims + [measure]

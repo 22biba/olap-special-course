@@ -123,4 +123,5 @@ After a query you see:
 
 - **“No data for the selected filters”** – Ensure the database is filled: run `python -m data.generate_dataset` then `python -m data.load_star_schema` (with backend stopped), or let the backend auto-seed on first request.
 - **404 or CORS errors** – Use the backend at `http://localhost:8000` and frontend at `http://localhost:5173`; CORS is set for these origins.
+- **Q1/Q2 appears to have no data** – The dataset includes all quarters (2022–2024). Try reloading: stop the backend, run `python -m data.load_star_schema`, then restart. You can also run `python scripts/verify_data.py` (with backend stopped) to confirm quarter coverage.
 - **Module not found (e.g. duckdb)** – From `backend`: `pip install -r requirements.txt`.

@@ -45,6 +45,7 @@ class ReportGeneratorAgent(BaseAgent):
         if task_type == "compare":
             suggestions.extend([
                 f"Compare Q3 vs Q4 2024 by {other_dims[0]}" if other_dims else "Compare by category",
+                "Compare Q1 vs Q2 2024 by region",
                 f"Top 5 {dim}s by {measure}",
                 f"Drill into best performer",
             ])
@@ -64,12 +65,19 @@ class ReportGeneratorAgent(BaseAgent):
         return suggestions[:5]
 
     def _compute_total(self, data: List[Dict[str, Any]], measure: str) -> float:
-        """Sum numeric values; for pivot tables, sum all numeric columns."""
+        """Sum numeric values; for pivot tables, sum all numeric columns. Skips non-numeric values."""
         if not data:
             return 0.0
         first = data[0]
         if measure in first:
-            return sum(float(row.get(measure) or 0.0) for row in data)
+            total = 0.0
+            for row in data:
+                val = row.get(measure)
+                try:
+                    total += float(val) if val is not None else 0.0
+                except (ValueError, TypeError):
+                    pass
+            return total
         return sum(
             float(v) for row in data for k, v in row.items()
             if k != "row" and isinstance(v, (int, float))
@@ -78,11 +86,21 @@ class ReportGeneratorAgent(BaseAgent):
     def _summary(self, data: List[Dict[str, Any]], measure: str) -> str:
         if not data:
             return "No data for the selected filters."
+        pct_col = next((k for k in (data[0].keys() if data else []) if str(k).endswith("_pct")), None)
+        if pct_col:
+            try:
+                top = max(data, key=lambda r: float(r.get(pct_col) or 0.0))
+                dims = [k for k in top if k != measure and k != pct_col and not str(k).endswith("_growth")]
+                desc = ", ".join(f"{k}={top[k]}" for k in dims[:3] if top.get(k) is not None)
+                pct_val = float(top.get(pct_col) or 0)
+                return f"Largest share: {pct_val:.1f}% for {desc}." if desc else f"Largest share: {pct_val:.1f}%."
+            except (ValueError, TypeError):
+                pass
         try:
             top = max(data, key=lambda r: float(r.get(measure) or 0.0) if measure in r else 0.0)
         except (ValueError, TypeError):
             return f"Report with {len(data)} rows."
-        dims = [k for k in top if k != measure and not str(k).endswith("_growth")]
+        dims = [k for k in top if k != measure and not str(k).endswith("_growth") and not str(k).endswith("_pct")]
         desc = ", ".join(f"{k}={top[k]}" for k in dims[:3] if top.get(k) is not None)
         val = float(top.get(measure) or 0)
         return f"Highest {measure}: {val:.2f} for {desc}." if desc else f"Highest {measure}: {val:.2f}."
