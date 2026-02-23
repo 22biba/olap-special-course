@@ -1,6 +1,4 @@
-"""
-KPI Calculator Agent: YoY/MoM growth, profit margin, Top N rankings.
-"""
+
 from typing import Any, Dict, List
 
 from .base_agent import BaseAgent

@@ -1,7 +1,4 @@
-"""
-Cube Operations Agent: slice (single dimension), dice (multiple), pivot (reorganize).
-Supports HAVING (e.g. revenue > 500) for filter queries.
-"""
+
 from typing import Any, Dict, List, Optional
 
 from database.connection import get_connection
@@ -28,7 +25,6 @@ AOV_MEASURES = {"aov"}
 
 
 def _normalize_filters(filters: Dict[str, Any]) -> Dict[str, Any]:
-    """Expand date_quarter values like '2024-Q3' into year + quarter for dim_date."""
     out = {}
     for k, v in filters.items():
         if k == "date_quarter" and isinstance(v, list):

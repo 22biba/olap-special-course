@@ -1,9 +1,5 @@
-"""
-Report Generator Agent: formatted tables, totals, conditional formatting hints,
-executive summary, and follow-up suggestions.
-"""
-from typing import Any, Dict, List
 
+from typing import Any, Dict, List
 from .base_agent import BaseAgent
 
 
@@ -52,7 +48,6 @@ class ReportGeneratorAgent(BaseAgent):
         dim: str,
         intent: Dict[str, Any],
     ) -> List[str]:
-        """Generate contextual follow-up question suggestions."""
         suggestions = []
         dim_map = {"region": "region", "country": "country", "category": "category", "segment": "segment", "subcategory": "subcategory"}
         other_dims = [d for d in ["region", "country", "category", "segment", "subcategory"] if d != dim]
@@ -80,7 +75,6 @@ class ReportGeneratorAgent(BaseAgent):
         return suggestions[:5]
 
     def _compute_total(self, data: List[Dict[str, Any]], measure: str) -> float:
-        """Sum numeric values; for pivot tables, sum all numeric columns. Skips non-numeric values."""
         if not data:
             return 0.0
         first = data[0]

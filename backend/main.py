@@ -1,8 +1,4 @@
-"""
-API layer: FastAPI app – Tier 3 OLAP BI Platform.
-Endpoints: /query, /kpi, /report.
-Run from backend: uvicorn main:app --reload --port 8000
-"""
+
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -44,7 +40,6 @@ planner = Planner()
 
 
 class BIQueryRequest(BaseModel):
-    """Request body for BI query endpoints. Use natural language or structured fields."""
 
     natural_language_query: Optional[str] = Field(
         default=None,
@@ -62,7 +57,6 @@ class BIQueryResponse(BaseModel):
 
 
 def _get_intent(payload: BIQueryRequest) -> tuple[Dict[str, Any], List[Dict[str, Any]]]:
-    """Parse natural language to intent; pass conversation history for context."""
     history = []
     if payload.conversation_history:
         history = [{"query": h.get("query"), "result": h.get("result")} for h in payload.conversation_history]
@@ -80,7 +74,6 @@ def _get_intent(payload: BIQueryRequest) -> tuple[Dict[str, Any], List[Dict[str,
 
 @app.get("/", tags=["Health"])
 def root():
-    """Service info and links to Swagger/API docs."""
     return {
         "message": "OLAP BI Platform API",
         "swagger": "/docs",
@@ -92,7 +85,6 @@ def root():
 
 @app.post("/query", response_model=BIQueryResponse, tags=["Query"])
 async def query(payload: BIQueryRequest) -> BIQueryResponse:
-    """Main endpoint: natural-language or structured query; returns full pipeline (cube, KPI, drill, report)."""
     intent, history = _get_intent(payload)
     result = planner.handle_query(intent, conversation_history=history)
     return BIQueryResponse(result=result)
@@ -100,7 +92,6 @@ async def query(payload: BIQueryRequest) -> BIQueryResponse:
 
 @app.post("/analytics/query", response_model=BIQueryResponse, tags=["Query"])
 async def analytics_query(payload: BIQueryRequest) -> BIQueryResponse:
-    """Alias for /query. Same request/response."""
     intent, history = _get_intent(payload)
     result = planner.handle_query(intent, conversation_history=history)
     return BIQueryResponse(result=result)
@@ -108,7 +99,6 @@ async def analytics_query(payload: BIQueryRequest) -> BIQueryResponse:
 
 @app.post("/kpi", response_model=BIQueryResponse, tags=["KPI"])
 async def kpi(payload: BIQueryRequest) -> BIQueryResponse:
-    """Return KPI-focused result: kpi_data, best_performer, and minimal report."""
     intent, history = _get_intent(payload)
     full = planner.handle_query(intent, conversation_history=history)
     return BIQueryResponse(result={
@@ -120,7 +110,6 @@ async def kpi(payload: BIQueryRequest) -> BIQueryResponse:
 
 @app.post("/report", response_model=BIQueryResponse, tags=["Report"])
 async def report(payload: BIQueryRequest) -> BIQueryResponse:
-    """Return report-only: executive summary, totals, formatting, formatted table, follow-up suggestions."""
     intent, history = _get_intent(payload)
     full = planner.handle_query(intent, conversation_history=history)
     return BIQueryResponse(result={"report": full.get("report", {})})

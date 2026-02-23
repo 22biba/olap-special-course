@@ -33,13 +33,21 @@ Optional: set `OPENAI_API_KEY` for LLM-based natural language parsing (copy `.en
 - Frontend: **http://localhost:5173**
 - API docs: **http://localhost:8000/docs**
 
+## Deliverables
+
+| Deliverable | Location |
+|-------------|----------|
+| **Working demo** | [docs/WORKING_DEMO.md](docs/WORKING_DEMO.md) – run locally, sample questions, offline Swagger |
+| **Database schema** | [docs/DATABASE_ER.md](docs/DATABASE_ER.md) – ER diagram, table descriptions, DDL scripts |
+| **Agent specifications** | [docs/agent_specifications.md](docs/agent_specifications.md) – purpose, I/O, logic for each agent |
+
 ## Repository structure
 
 ```
 ├── backend/          # FastAPI, agents, planner, DB connection
 ├── frontend/         # React + Vite, chat input, tables, charts
 ├── data/             # generate_dataset.py, load_star_schema.py, CSV, DuckDB
-├── docs/             # Architecture, ER, API, User guide
+├── docs/             # Architecture, ER, API, User guide, Working demo
 └── README.md
 ```
 

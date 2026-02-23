@@ -1,7 +1,4 @@
-"""
-Planner/Orchestrator: query understanding, agent selection, coordination, context.
-Selects appropriate agents, passes context, maintains conversation history, aggregates results.
-"""
+
 from typing import Any, Dict, List, Optional
 
 from agents.cube_operations import CubeOperationsAgent
@@ -61,7 +58,6 @@ class Planner:
     def _flow_compound(
         self, context: Dict[str, Any], intent: Dict[str, Any], conversation_history: Optional[List[Dict]] = None
     ) -> Dict[str, Any]:
-        """Run two steps (e.g. 'revenue by year' then 'drill into 2024 by quarter') and return combined result."""
         steps = intent.get("steps", [])
         if len(steps) < 2:
             step_context = {**context, "intent": steps[0]} if steps else context
@@ -95,7 +91,6 @@ class Planner:
     def _flow_aggregate(
         self, context: Dict[str, Any], measure: str, filters: Dict[str, Any], intent: Dict[str, Any]
     ) -> Dict[str, Any]:
-        """Total across all - no dimension grouping (2022, 2023, 2024 combined). Use all 4 agents."""
         agg = intent.get("agg", "sum")
         cube_result = self.cube_ops.run(
             context,
@@ -159,7 +154,6 @@ class Planner:
         current_year: int,
         previous_year: int,
     ) -> Dict[str, Any]:
-        """Compare two full years (e.g. 2023 vs 2024). Use all 4 agents."""
         dim = _dim_to_cube_key(dimension)
         cube_result = self.cube_ops.run(
             context,
@@ -273,7 +267,6 @@ class Planner:
         n: int,
         intent: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
-        """Top N or bottom N by dimension. Use all 4 agents."""
         intent = intent or {}
         worst = intent.get("worst", False)
         kpi_type = "bottom_n" if worst else "top_n"
@@ -399,7 +392,6 @@ class Planner:
         return out
 
     def _flow_pivot(self, context: Dict[str, Any], measure: str, intent: Dict[str, Any]) -> Dict[str, Any]:
-        """Pivot table. Use all 4 agents."""
         row_dim = intent.get("row_dim") or intent.get("dimensions", ["region"])[0]
         col_dim = intent.get("col_dim") or "date_quarter"
         row_dim = _dim_to_cube_key(row_dim)
@@ -444,7 +436,6 @@ class Planner:
         return out
 
     def _flow_drill_down(self, context: Dict[str, Any]) -> Dict[str, Any]:
-        """Drill into a time level (e.g. 2024 by quarter). Use all 4 agents."""
         intent = context.get("intent", {})
         filters = dict(intent.get("filters") or {})
         if filters.get("date_year") is not None and filters.get("year") is None:
@@ -513,7 +504,6 @@ class Planner:
         }
 
     def _flow_roll_up(self, context: Dict[str, Any]) -> Dict[str, Any]:
-        """Roll up time hierarchy. Use all 4 agents."""
         intent = context.get("intent", {})
         filters = intent.get("filters", {})
         current_level = intent.get("current_level", "month")

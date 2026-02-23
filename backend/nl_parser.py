@@ -9,7 +9,6 @@ from typing import Any, Dict, List, Optional
 
 
 def parse_natural_language(text: str, conversation_history: Optional[List[Dict]] = None) -> Dict[str, Any]:
-    """Convert natural language question to structured BI intent (task_type, time_scope, dimensions, measure)."""
     if not text or not text.strip():
         return _default_intent()
 
@@ -41,7 +40,6 @@ def parse_natural_language(text: str, conversation_history: Optional[List[Dict]]
 
 
 def _parse_with_llm(text: str, api_key: str, history: List[Dict]) -> Dict[str, Any]:
-    """Use OpenAI to extract structured intent from natural language."""
     from openai import OpenAI
 
     client = OpenAI(api_key=api_key)
@@ -85,7 +83,6 @@ Rules:
 
 
 def _apply_compound_override(text: str, intent: Dict[str, Any]) -> Dict[str, Any]:
-    """Detect compound queries: 'X, then Y' or 'Show category totals, drill into X by subcategory' (comma without 'then')."""
     raw = text.strip()
 
     if re.search(r"category\s+totals", raw, re.IGNORECASE) and re.search(r"drill\s+into\s+.+\s+by\s+subcategory", raw, re.IGNORECASE):
@@ -175,7 +172,6 @@ def _apply_compound_override(text: str, intent: Dict[str, Any]) -> Dict[str, Any
 
 
 def _apply_percentage_override(text: str, intent: Dict[str, Any]) -> Dict[str, Any]:
-    """'What percentage of revenue comes from each region?' -> slice by that dimension and compute share."""
     raw = text.strip()
     if not re.search(r"percentage of (revenue|profit)|what percentage|share of (revenue|profit)", raw, re.IGNORECASE):
         return intent
@@ -204,7 +200,6 @@ def _apply_percentage_override(text: str, intent: Dict[str, Any]) -> Dict[str, A
 
 
 def _apply_transactions_override(text: str, intent: Dict[str, Any]) -> Dict[str, Any]:
-    """'How many transactions per category?' -> slice by dimension, measure=transactions."""
     t = text.strip().lower()
     if not re.search(r"how\s+many\s+transactions|transaction\s+count|number\s+of\s+transactions|transactions\s+per", t):
         return intent
@@ -232,7 +227,6 @@ def _apply_transactions_override(text: str, intent: Dict[str, Any]) -> Dict[str,
 
 
 def _apply_worst_performer_override(text: str, intent: Dict[str, Any]) -> Dict[str, Any]:
-    """'Identify the worst-performing subcategory' -> top_n with worst=True, dimensions=[subcategory], n=1."""
     t = text.strip().lower()
     if not re.search(r"worst|bottom|lowest|poorest|identify.*(?:worst|bottom)", t):
         return intent
@@ -259,7 +253,6 @@ def _apply_worst_performer_override(text: str, intent: Dict[str, Any]) -> Dict[s
 
 
 def _apply_drill_quarter_override(text: str, intent: Dict[str, Any]) -> Dict[str, Any]:
-    """'Drill Q4 2024 down to months' -> drill_down, current_level=quarter, filters with year and quarter."""
     t = text.strip().lower()
     if intent.get("task_type") != "drill_down":
         return intent
@@ -297,8 +290,6 @@ def _apply_drill_quarter_override(text: str, intent: Dict[str, Any]) -> Dict[str
 
 
 def _apply_filter_override(text: str, intent: Dict[str, Any]) -> Dict[str, Any]:
-    """When query explicitly says 'filter to' or 'filter by', force slice and extract filters from text.
-    Ensures each filter query is evaluated on its own context, not previous compare/aggregate flows."""
     t = text.strip().lower()
     if not re.search(r"filter\s+to|filter\s+(?:by|on)", t):
         return intent
@@ -329,7 +320,6 @@ def _apply_filter_override(text: str, intent: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def _normalize_intent(intent: Dict) -> Dict[str, Any]:
-    """Ensure intent has required fields with sensible defaults."""
     out = {
         "task_type": intent.get("task_type", "compare"),
         "time_scope": intent.get("time_scope", {"granularity": "quarter", "periods": ["2024-Q3", "2024-Q4"]}),

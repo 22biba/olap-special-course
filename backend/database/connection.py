@@ -1,6 +1,4 @@
-"""
-Data access layer: DuckDB connection and star schema bootstrap.
-"""
+
 import os
 from pathlib import Path
 from typing import Optional

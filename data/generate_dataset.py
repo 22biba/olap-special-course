@@ -1,8 +1,4 @@
-"""
-Generate Global Retail Sales CSV: 10k transactions, Jan 2022 - Dec 2024.
-Dimensions: date, region, country, category, subcategory, segment.
-Measures: quantity, unit_price, revenue, cost, profit.
-"""
+
 import csv
 import random
 from datetime import datetime, timedelta

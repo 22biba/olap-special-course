@@ -1,9 +1,4 @@
-"""
-Load global_retail_sales.csv into DuckDB star schema.
-Expects CSV columns: date, region, country, category, subcategory, segment, quantity, unit_price, revenue, cost, profit, profit_margin.
-Run from project root: python -m data.load_star_schema
-Or from backend (with PYTHONPATH including project root): python -m data.load_star_schema
-"""
+
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -13,7 +8,6 @@ SCHEMA_SQL = PROJECT_ROOT / "backend" / "database" / "schema.sql"
 
 
 def _migrate_schema(con):
-    """Add new columns to existing schema for backward compatibility."""
     try:
         con.execute("ALTER TABLE dim_date ADD COLUMN month_name VARCHAR(20)")
     except Exception:

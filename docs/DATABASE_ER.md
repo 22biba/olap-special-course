@@ -59,14 +59,15 @@ The dataset is modeled as a **star schema**: one fact table (`fact_sales`) and f
 
 ### dim_date (time hierarchy)
 
-| Column     | Type    | Description        |
-|------------|---------|--------------------|
-| date_id    | INTEGER | Primary key        |
-| date_actual| DATE    | Calendar date       |
-| year       | INTEGER | Year                |
-| quarter    | VARCHAR | Q1, Q2, Q3, Q4     |
-| month      | INTEGER | 1–12                |
-| day        | INTEGER | Day of month        |
+| Column      | Type    | Description        |
+|-------------|---------|--------------------|
+| date_id     | INTEGER | Primary key        |
+| date_actual | DATE    | Calendar date      |
+| year        | INTEGER | Year               |
+| quarter     | VARCHAR | Q1, Q2, Q3, Q4     |
+| month       | INTEGER | 1–12               |
+| month_name  | VARCHAR | January … December |
+| day         | INTEGER | Day of month       |
 
 **Hierarchy:** Year → Quarter → Month → Day (drill-down / roll-up).
 
@@ -97,6 +98,58 @@ The dataset is modeled as a **star schema**: one fact table (`fact_sales`) and f
 | customer_id| INTEGER | Primary key |
 | segment    | VARCHAR | e.g. Consumer, Corporate |
 
-## DDL
+## DDL Scripts
 
-Full DDL is in **`backend/database/schema.sql`**. Data is loaded from `data/global_retail_sales.csv` via `data/load_star_schema.py` or auto-seed on first backend connection when the fact table is empty.
+Full DDL is in **`backend/database/schema.sql`**. Below is the complete script.
+
+### schema.sql (DuckDB)
+
+```sql
+-- Star schema for BI Platform (Tier 3)
+CREATE TABLE IF NOT EXISTS dim_date (
+    date_id      INTEGER PRIMARY KEY,
+    date_actual  DATE NOT NULL,
+    year         INTEGER NOT NULL,
+    quarter      VARCHAR(2) NOT NULL,
+    month        INTEGER NOT NULL,
+    month_name   VARCHAR(20) NOT NULL,
+    day          INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS dim_geography (
+    geography_id INTEGER PRIMARY KEY,
+    region       VARCHAR NOT NULL,
+    country      VARCHAR NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS dim_product (
+    product_id   INTEGER PRIMARY KEY,
+    category     VARCHAR NOT NULL,
+    subcategory  VARCHAR NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS dim_customer (
+    customer_id  INTEGER PRIMARY KEY,
+    segment      VARCHAR NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS fact_sales (
+    sales_id      BIGINT PRIMARY KEY,
+    date_id       INTEGER NOT NULL,
+    geography_id  INTEGER NOT NULL,
+    product_id    INTEGER NOT NULL,
+    customer_id   INTEGER NOT NULL,
+    quantity      DOUBLE,
+    unit_price    DOUBLE,
+    revenue       DOUBLE,
+    cost          DOUBLE,
+    profit        DOUBLE,
+    profit_margin DOUBLE
+);
+```
+
+### Loading Data
+
+1. Generate CSV: `python -m data.generate_dataset` → `data/global_retail_sales.csv`
+2. Load schema + data: `python -m data.load_star_schema` → `data/bi_star.duckdb`
+3. Or: backend auto-seeds on first connection when `fact_sales` is empty.
