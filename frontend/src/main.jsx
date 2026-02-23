@@ -124,40 +124,43 @@ function App() {
     const step0CubeData = step0Result?.cube_result?.data ?? step0Result?.cube?.data ?? [];
     const step0CubeCols = step0CubeData.length > 0 ? Object.keys(step0CubeData[0]) : [];
 
-    const chartDimensionKey = columns.find((c) => ["date_quarter", "date_year", "region", "country", "category", "segment"].includes(c)) || columns[0];
+    const chartDimensionKey = columns.find((c) => ["date_quarter", "date_year", "region", "country", "category", "segment", "subcategory", "date_month_name"].includes(c)) || columns[0];
     const nameKey = chartDimensionKey;
-    const hasProfit = columns.some((c) => c === "profit_current" || c === "profit_growth" || c === "profit_margin");
-    const valueKey = hasProfit ? "profit_current" : "revenue_current";
-    const growthKey = hasProfit ? "profit_growth" : "revenue_growth";
-    const fallbackValueKey = hasProfit ? "profit" : "revenue";
+    const measureCols = ["revenue_current", "profit_current", "revenue", "profit", "profit_margin", "transactions", "aov", "quantity"];
+    const growthCols = ["revenue_growth", "profit_growth"];
+    const valueKey = measureCols.find((c) => columns.includes(c)) || columns.find((c) => !["rank", nameKey].includes(c) && typeof (table[0]?.[c]) === "number");
+    const growthKey = growthCols.find((c) => columns.includes(c));
     const chartData = table
       .filter((r) => r[nameKey] != null)
-      .map((r) => ({
-        name: String(r[nameKey] ?? "—"),
-        value: Number(r[valueKey] ?? r[fallbackValueKey] ?? 0),
-        growth: Number(r[growthKey] ?? 0),
-      }))
+      .map((r) => {
+        const val = valueKey ? (r[valueKey] ?? r["revenue"] ?? r["profit"] ?? r["profit_margin"] ?? 0) : 0;
+        return {
+          name: String(r[nameKey] ?? "—"),
+          value: Number(val),
+          growth: growthKey ? Number(r[growthKey] ?? 0) : 0,
+        };
+      })
       .slice(0, 10);
-    const measureLabel = hasProfit ? "Profit" : "Revenue";
+    const valueLabel = valueKey === "profit" || valueKey === "profit_current" ? "Profit" : valueKey === "profit_margin" ? "Profit margin" : valueKey === "transactions" ? "Transactions" : valueKey === "aov" ? "AOV" : "Revenue";
     const chartTitleByDimension = {
-      date_quarter: `${measureLabel} by quarter`,
-      date_year: `${measureLabel} by year`,
-      region: `${measureLabel} by region`,
-      country: `${measureLabel} by country`,
-      category: `${measureLabel} by category`,
-      segment: `${measureLabel} by segment`,
+      date_quarter: `${valueLabel} by quarter`,
+      date_year: `${valueLabel} by year`,
+      region: `${valueLabel} by region`,
+      country: `${valueLabel} by country`,
+      category: `${valueLabel} by category`,
+      segment: `${valueLabel} by segment`,
+      subcategory: `${valueLabel} by subcategory`,
+      date_month_name: `${valueLabel} by month`,
     };
-    const chartTitle = chartTitleByDimension[chartDimensionKey] || `${measureLabel} by ${chartDimensionKey}`;
+    const chartTitle = chartTitleByDimension[chartDimensionKey] || `${valueLabel} by ${chartDimensionKey}`;
 
     return (
       <React.Fragment key={index}>
-        {/* User message bubble */}
         <div style={{ display: "flex", justifyContent: "flex-end" }}>
           <div style={{ maxWidth: "75%", background: "#2563eb", color: "white", padding: "0.75rem 1rem", borderRadius: "18px 18px 4px 18px", fontSize: "0.95rem", boxShadow: "0 4px 10px rgba(37, 99, 235, 0.3)" }}>
             {query}
           </div>
         </div>
-        {/* Follow-up suggestions - only for latest */}
         {isLatest && followUpSuggestions.length > 0 && (
           <div style={{ display: "flex", justifyContent: "flex-start" }}>
             <div style={{ maxWidth: "80%", background: "#f1f5f9", padding: "0.75rem 1rem", borderRadius: "18px 18px 18px 4px", fontSize: "0.85rem" }}>
@@ -172,7 +175,6 @@ function App() {
             </div>
           </div>
         )}
-        {/* Assistant response with agents + visuals */}
         <div style={{ display: "flex", justifyContent: "flex-start" }}>
           <div style={{ flex: 1, maxWidth: "100%", background: "#f8fafc", borderRadius: "18px 18px 18px 4px", padding: "1rem", border: "1px solid #e2e8f0", boxShadow: "0 6px 18px rgba(15, 23, 42, 0.06)" }}>
             <div style={{ marginBottom: "0.75rem", display: "flex", alignItems: "center", gap: "0.4rem" }}>
@@ -224,8 +226,10 @@ function App() {
                       <YAxis tick={{ fontSize: 11 }} />
                       <Tooltip formatter={(v) => Number(v).toFixed(2)} />
                       <Legend />
-                      <Bar dataKey="value" name={measureLabel} fill="#2563eb" radius={[4, 4, 0, 0]} />
-                      <Bar dataKey="growth" name="Growth" fill="#059669" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="value" name={valueLabel} fill="#2563eb" radius={[4, 4, 0, 0]} />
+                      {growthKey && chartData.some((d) => d.growth !== 0) && (
+                        <Bar dataKey="growth" name="Growth" fill="#059669" radius={[4, 4, 0, 0]} />
+                      )}
                     </BarChart>
                   </ResponsiveContainer>
                 </section>
@@ -298,7 +302,6 @@ function App() {
           overflow: "hidden",
         }}
       >
-        {/* Header */}
         <header
           style={{
             padding: "1rem 1.5rem",
@@ -322,7 +325,6 @@ function App() {
           </div>
         </header>
 
-        {/* Chat area */}
         <main
           style={{
             flex: 1,
@@ -339,12 +341,10 @@ function App() {
             </div>
           )}
 
-          {/* Chat history: all questions and results */}
           {conversationHistory.map((item, index) =>
             renderExchange(item, index, index === conversationHistory.length - 1)
           )}
 
-          {/* Pending query: user asked, waiting for response */}
           {pendingQuery && (
             <>
               <div style={{ display: "flex", justifyContent: "flex-end" }}>
@@ -363,7 +363,6 @@ function App() {
           <div ref={chatEndRef} />
         </main>
 
-        {/* Composer */}
         <form
           onSubmit={runChatQuery}
           style={{

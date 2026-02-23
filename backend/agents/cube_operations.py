@@ -22,8 +22,9 @@ DIM_MAP = {
     "segment": "dc.segment",
 }
 
-# Measures that use AVG instead of SUM when aggregating
 AVG_MEASURES = {"unit_price", "profit_margin"}
+COUNT_MEASURES = {"transactions"}
+AOV_MEASURES = {"aov"}
 
 
 def _normalize_filters(filters: Dict[str, Any]) -> Dict[str, Any]:
@@ -68,8 +69,13 @@ def _build_fact_query(
             else:
                 select_parts.append(f"{e} AS {d}")
                 group_parts.append(e)
-    agg_fn = "AVG" if measure in AVG_MEASURES else "SUM"
-    measure_expr = f"{agg_fn}(fs.{measure}) AS {measure}"
+    if measure in COUNT_MEASURES:
+        measure_expr = "COUNT(fs.sales_id) AS transactions"
+    elif measure in AOV_MEASURES:
+        measure_expr = "SUM(fs.revenue) / COUNT(fs.sales_id) AS aov"
+    else:
+        agg_fn = "AVG" if measure in AVG_MEASURES else "SUM"
+        measure_expr = f"{agg_fn}(fs.{measure}) AS {measure}"
     select_sql = ", ".join(select_parts + [measure_expr]) if select_parts else measure_expr
     filters = _normalize_filters(filters)
     where_parts, params = [], []
@@ -87,7 +93,7 @@ def _build_fact_query(
     where_sql = ("WHERE " + where_sql) if where_sql else ""
     group_sql = "GROUP BY " + ", ".join(group_parts) if group_parts else ""
     having_sql = ""
-    if having_min is not None and group_parts:
+    if having_min is not None and group_parts and measure not in (COUNT_MEASURES | AOV_MEASURES):
         h_agg = "AVG" if measure in AVG_MEASURES else "SUM"
         having_sql = f" HAVING {h_agg}(fs.{measure}) > {float(having_min)}"
     sql = f"""
@@ -116,7 +122,6 @@ class CubeOperationsAgent(BaseAgent):
             raise ValueError("operation must be slice, dice, or pivot")
 
         if operation in ("slice", "dice"):
-            # Respect explicit group_by=[] for global aggregate (one total row)
             group_dims = params.get("group_by") if "group_by" in params else (list(filters.keys()) or ["region"])
             having_min = params.get("having_min")
             sql, par = _build_fact_query(filters, measure, group_dims, having_min=having_min)

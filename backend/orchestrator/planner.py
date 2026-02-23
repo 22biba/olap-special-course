@@ -11,7 +11,7 @@ from agents.report_generator import ReportGeneratorAgent
 
 
 def _dim_to_cube_key(dim: str) -> str:
-    if dim in ("region", "country", "category", "segment"):
+    if dim in ("region", "country", "category", "segment", "subcategory"):
         return dim
     return dim
 
@@ -42,7 +42,7 @@ class Planner:
         if task_type == "aggregate":
             return self._flow_aggregate(context, measure, intent.get("filters", {}), intent)
         if task_type == "top_n":
-            return self._flow_top_n(context, measure, dimensions, filters, intent.get("n", 5))
+            return self._flow_top_n(context, measure, dimensions, filters, intent.get("n", 5), intent)
         if task_type == "drill_down":
             return self._flow_drill_down(context)
         if task_type == "roll_up":
@@ -56,7 +56,6 @@ class Planner:
                 return self._flow_compare_years(context, measure, dim, int(cur_period) if str(cur_period).isdigit() else 2024, int(prev_period) if str(prev_period).isdigit() else 2023)
             return self._flow_compare(context, measure, dim, cur_period, prev_period)
 
-        # slice (single filter) or dice (multiple filters)
         return self._flow_slice_dice(context, measure, dimensions, filters, intent)
 
     def _flow_compound(
@@ -65,7 +64,6 @@ class Planner:
         """Run two steps (e.g. 'revenue by year' then 'drill into 2024 by quarter') and return combined result."""
         steps = intent.get("steps", [])
         if len(steps) < 2:
-            # Fallback: run first step only
             step_context = {**context, "intent": steps[0]} if steps else context
             return self.handle_query(steps[0] if steps else intent, conversation_history)
 
@@ -84,7 +82,6 @@ class Planner:
             "compound": True,
             "step0": {"query": step0_query, "result": result0},
             "step1": {"query": step1_query, "result": result1},
-            # Primary result = step1 so existing UI shows the drill
             "cube_result": result1.get("cube_result"),
             "cube": result1.get("cube_result"),
             "kpi_result": result1.get("kpi_result"),
@@ -113,7 +110,6 @@ class Planner:
         data = cube_result.get("data", [])
         out: Dict[str, Any] = {"cube_result": cube_result}
 
-        # KPI: get breakdown by year and compute YoY growth so KPI agent contributes
         by_year = self.cube_ops.run(
             context,
             {"operation": "dice", "filters": filters, "measure": measure, "group_by": ["date_year"]},
@@ -140,7 +136,6 @@ class Planner:
                 kpi_data = out["kpi_data"]
                 out["best_performer"] = max(kpi_data, key=lambda r: r.get(f"{measure}_growth", 0.0)) if kpi_data else None
 
-        # Dimension Navigator: suggest drill from year to quarter
         try:
             out["drill"] = self.dimension_navigator.run(
                 context,
@@ -276,8 +271,12 @@ class Planner:
         dimensions: List[str],
         filters: Dict[str, Any],
         n: int,
+        intent: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
-        """Top N by dimension. Use all 4 agents."""
+        """Top N or bottom N by dimension. Use all 4 agents."""
+        intent = intent or {}
+        worst = intent.get("worst", False)
+        kpi_type = "bottom_n" if worst else "top_n"
         dim = _dim_to_cube_key(dimensions[0]) if dimensions else "region"
         cube_result = self.cube_ops.run(
             context,
@@ -292,7 +291,7 @@ class Planner:
 
         kpi_result = self.kpi_calc.run(
             context,
-            {"kpi_type": "top_n", "data": data, "measure": measure, "dimension": dim, "n": n},
+            {"kpi_type": kpi_type, "data": data, "measure": measure, "dimension": dim, "n": n},
         )
         top_data = kpi_result.get("data", [])
 
@@ -340,7 +339,6 @@ class Planner:
         )
         data = cube_result.get("data", [])
 
-        # "What percentage of revenue from each region?" -> add percentage column
         if intent.get("compute_percentage") and data and measure in (data[0] or {}):
             total = sum(float(r.get(measure) or 0) for r in data)
             pct_key = f"{measure}_pct"
@@ -356,7 +354,6 @@ class Planner:
 
         out: Dict[str, Any] = {"cube_result": cube_result, "cube": cube_result}
 
-        # KPI + Dimension Navigator so all 4 agents contribute for every slice/dice.
         if row_dim == "date_year" and data:
             years = sorted({int(r.get("date_year", 0)) for r in data if r.get("date_year") is not None})
             if len(years) >= 2:
@@ -381,7 +378,6 @@ class Planner:
                 ) if out["kpi_data"] else None
                 out["best_performer"] = best
         else:
-            # Non–date_year slice/dice: KPI = top_n on this result so KPI agent is used
             if data and row_dim in (data[0] if data else {}):
                 kpi_result = self.kpi_calc.run(
                     context,
@@ -422,7 +418,6 @@ class Planner:
         table = cube_result.get("table", [])
         out: Dict[str, Any] = {"cube_result": cube_result, "pivot": cube_result}
 
-        # KPI: top_n by row (aggregate across columns for each row)
         if table:
             row_agg = []
             for r in table:
@@ -462,7 +457,6 @@ class Planner:
             {"action": "drill_down", "current_level": current_level, "filters": filters},
         )
 
-        # Cube: get measure at the drilled level (e.g. revenue by quarter for year 2024)
         cube_result = None
         kpi_result = None
         kpi_data = []
@@ -485,7 +479,10 @@ class Planner:
                 )
                 kpi_data = kpi_result.get("data", [])
         elif current_level == "quarter":
-            y, q = filters.get("year"), filters.get("quarter")
+            y = filters.get("year") or filters.get("date_year")
+            q = filters.get("quarter") or (filters.get("date_quarter") if isinstance(filters.get("date_quarter"), str) and len(str(filters.get("date_quarter"))) <= 4 else None)
+            if q and "-" in str(q):
+                q = str(q).split("-", 1)[1].strip()
             if y is not None and q is not None:
                 cube_result = self.cube_ops.run(
                     context,
@@ -493,14 +490,14 @@ class Planner:
                         "operation": "dice",
                         "filters": {"date_year": y, "date_quarter": q},
                         "measure": measure,
-                        "group_by": ["date_month"],
+                        "group_by": ["date_month_name"],
                     },
                 )
                 data = cube_result.get("data", [])
                 if data:
                     kpi_result = self.kpi_calc.run(
                         context,
-                        {"kpi_type": "top_n", "data": data, "measure": measure, "dimension": "date_month", "n": 12},
+                        {"kpi_type": "top_n", "data": data, "measure": measure, "dimension": "date_month_name", "n": 12},
                     )
                     kpi_data = kpi_result.get("data", [])
 
@@ -527,7 +524,6 @@ class Planner:
             {"action": "roll_up", "current_level": current_level, "filters": filters},
         )
 
-        # Cube: aggregate at rolled-up level (e.g. by quarter if rolling up from month)
         group_dim = "date_quarter" if current_level == "month" else "date_year" if current_level == "quarter" else None
         cube_result = None
         kpi_result = None

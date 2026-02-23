@@ -6,7 +6,6 @@ Or from backend (with PYTHONPATH including project root): python -m data.load_st
 """
 from pathlib import Path
 
-# Project root: this file is in project_root/data/
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 CSV_PATH = PROJECT_ROOT / "data" / "global_retail_sales.csv"
 DB_PATH = PROJECT_ROOT / "data" / "bi_star.duckdb"
@@ -41,16 +40,13 @@ def main():
     if SCHEMA_SQL.exists():
         con.execute(SCHEMA_SQL.read_text(encoding="utf-8"))
 
-    # Migrate existing DB: add new columns if missing
     _migrate_schema(con)
 
-    # DuckDB read_csv_auto
     con.execute(f"""
         CREATE OR REPLACE TEMP TABLE staging AS
         SELECT * FROM read_csv_auto('{CSV_PATH.as_posix()}', header=TRUE)
     """)
 
-    # Surrogate keys for dimensions (use INSERT INTO ... SELECT with row_number)
     con.execute("DELETE FROM fact_sales")
     con.execute("DELETE FROM dim_date")
     con.execute("""

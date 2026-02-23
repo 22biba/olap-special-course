@@ -7,7 +7,6 @@ from typing import Optional
 
 import duckdb
 
-# DB file: project_root/data/bi_star.duckdb (backend/database -> parents[2] = project root)
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DB_PATH = _PROJECT_ROOT / "data" / "bi_star.duckdb"
 SCHEMA_SQL_PATH = Path(__file__).resolve().with_name("schema.sql")

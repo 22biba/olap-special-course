@@ -22,9 +22,11 @@ class KPICalculatorAgent(BaseAgent):
         elif kpi_type in ("yoy_growth", "mom_change"):
             out = self._period_growth(data, measure, period_key, current_period, previous_period)
         elif kpi_type == "top_n":
-            out = self._top_n(data, measure, dimension, n)
+            out = self._top_n(data, measure, dimension, n, ascending=False)
+        elif kpi_type == "bottom_n":
+            out = self._top_n(data, measure, dimension, n, ascending=True)
         else:
-            raise ValueError("kpi_type must be profit_margin, yoy_growth, mom_change, or top_n")
+            raise ValueError("kpi_type must be profit_margin, yoy_growth, mom_change, top_n, or bottom_n")
         return {"kpi_type": kpi_type, "data": out}
 
     def _profit_margin(self, data: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
@@ -61,12 +63,12 @@ class KPICalculatorAgent(BaseAgent):
             result.append(row)
         return result
 
-    def _top_n(self, data: List[Dict[str, Any]], measure: str, dimension: str, n: int) -> List[Dict[str, Any]]:
+    def _top_n(self, data: List[Dict[str, Any]], measure: str, dimension: str, n: int, ascending: bool = False) -> List[Dict[str, Any]]:
         agg = {}
         for row in data:
             d = row.get(dimension)
             if d is None:
                 continue
             agg[d] = agg.get(d, 0.0) + float(row.get(measure) or 0.0)
-        ranked = sorted(agg.items(), key=lambda x: x[1], reverse=True)[:n]
+        ranked = sorted(agg.items(), key=lambda x: x[1], reverse=not ascending)[:n]
         return [{"rank": i, dimension: d, measure: v} for i, (d, v) in enumerate(ranked, 1)]
