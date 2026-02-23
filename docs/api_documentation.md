@@ -8,6 +8,16 @@ The API is built with **FastAPI**. Swagger/OpenAPI documentation is available wh
 | **ReDoc** | http://localhost:8000/redoc |
 | **OpenAPI JSON spec** | http://localhost:8000/openapi.json |
 
+## View docs without running the server
+
+1. Export the OpenAPI spec:
+   ```bash
+   cd backend && python export_openapi.py
+   ```
+2. Open `docs/openapi.json` in:
+   - **Swagger Editor:** https://editor.swagger.io → File → Import file → select `openapi.json`
+   - **Redoc CLI:** `npx @redocly/cli preview docs/openapi.json`
+
 ## Endpoints
 
 | Method | Path | Description |
