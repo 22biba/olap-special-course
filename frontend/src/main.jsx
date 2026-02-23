@@ -130,15 +130,23 @@ function App() {
     const growthCols = ["revenue_growth", "profit_growth"];
     const valueKey = measureCols.find((c) => columns.includes(c)) || columns.find((c) => !["rank", nameKey].includes(c) && typeof (table[0]?.[c]) === "number");
     const growthKey = growthCols.find((c) => columns.includes(c));
+    const hasCompare = columns.includes("revenue_current") && columns.includes("revenue_previous") || columns.includes("profit_current") && columns.includes("profit_previous");
+    const prevKey = columns.includes("revenue_previous") ? "revenue_previous" : columns.includes("profit_previous") ? "profit_previous" : null;
+    const curKey = columns.includes("revenue_current") ? "revenue_current" : columns.includes("profit_current") ? "profit_current" : null;
     const chartData = table
       .filter((r) => r[nameKey] != null)
       .map((r) => {
         const val = valueKey ? (r[valueKey] ?? r["revenue"] ?? r["profit"] ?? r["profit_margin"] ?? 0) : 0;
-        return {
+        const out = {
           name: String(r[nameKey] ?? "—"),
           value: Number(val),
           growth: growthKey ? Number(r[growthKey] ?? 0) : 0,
         };
+        if (hasCompare && prevKey && curKey) {
+          out.previous = Number(r[prevKey] ?? 0);
+          out.current = Number(r[curKey] ?? 0);
+        }
+        return out;
       })
       .slice(0, 10);
     const valueLabel = valueKey === "profit" || valueKey === "profit_current" ? "Profit" : valueKey === "profit_margin" ? "Profit margin" : valueKey === "transactions" ? "Transactions" : valueKey === "aov" ? "AOV" : "Revenue";
@@ -152,7 +160,11 @@ function App() {
       subcategory: `${valueLabel} by subcategory`,
       date_month_name: `${valueLabel} by month`,
     };
-    const chartTitle = chartTitleByDimension[chartDimensionKey] || `${valueLabel} by ${chartDimensionKey}`;
+    const chartTitle = hasCompare
+      ? (query.toLowerCase().includes("2023") && query.toLowerCase().includes("2024")
+          ? `2023 vs 2024 ${valueLabel} by ${chartDimensionKey}`
+          : `${valueLabel} compare by ${chartDimensionKey}`)
+      : (chartTitleByDimension[chartDimensionKey] || `${valueLabel} by ${chartDimensionKey}`);
 
     return (
       <React.Fragment key={index}>
@@ -199,6 +211,7 @@ function App() {
                 </div>
                 {cubeResult ? (
                   <><p style={{ margin: "0 0 0.4rem 0", fontSize: "0.8rem", fontWeight: 600 }}>Operation: {cubeResult.operation || cubeResult.type || "dice"}</p>
+                    {report?.filters_applied && <p style={{ margin: "0 0 0.4rem 0", fontSize: "0.75rem", color: "#1e40af" }}>Filters: {report.filters_applied}</p>}
                     {renderTable(cubeData, cubeCols, false, formattingRules)}</>
                 ) : (
                   <p style={{ margin: 0, color: "#92400e", fontStyle: "italic", fontSize: "0.8rem" }}>Not used for this query.</p>
@@ -226,9 +239,18 @@ function App() {
                       <YAxis tick={{ fontSize: 11 }} />
                       <Tooltip formatter={(v) => Number(v).toFixed(2)} />
                       <Legend />
-                      <Bar dataKey="value" name={valueLabel} fill="#2563eb" radius={[4, 4, 0, 0]} />
-                      {growthKey && chartData.some((d) => d.growth !== 0) && (
-                        <Bar dataKey="growth" name="Growth" fill="#059669" radius={[4, 4, 0, 0]} />
+                      {hasCompare && chartData.some((d) => d.previous != null) ? (
+                        <>
+                          <Bar dataKey="previous" name={query.includes("2023") ? "2023" : "Previous"} fill="#94a3b8" radius={[4, 4, 0, 0]} />
+                          <Bar dataKey="current" name={query.includes("2024") ? "2024" : "Current"} fill="#2563eb" radius={[4, 4, 0, 0]} />
+                        </>
+                      ) : (
+                        <>
+                          <Bar dataKey="value" name={valueLabel} fill="#2563eb" radius={[4, 4, 0, 0]} />
+                          {growthKey && chartData.some((d) => d.growth !== 0) && (
+                            <Bar dataKey="growth" name="Growth" fill="#059669" radius={[4, 4, 0, 0]} />
+                          )}
+                        </>
                       )}
                     </BarChart>
                   </ResponsiveContainer>

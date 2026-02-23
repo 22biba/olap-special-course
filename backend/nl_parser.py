@@ -418,18 +418,18 @@ def _parse_with_keywords(text: str) -> Dict[str, Any]:
         intent["time_scope"]["periods"] = []
         return intent
 
-    if re.search(r"filter to|filter by|filter on", t):
-        intent["task_type"] = "slice"
-        intent["time_scope"]["periods"] = []
-        intent["dimensions"] = ["region"] if intent["filters"].get("region") else ["category"]
-        return intent
-
     if re.search(r"electronics in europe|filter to electronics", t):
         intent["task_type"] = "slice"
         intent["filters"]["category"] = "Electronics"
         intent["filters"]["region"] = "Europe"
         intent["dimensions"] = ["category"]
         intent["time_scope"]["periods"] = []
+        return intent
+
+    if re.search(r"filter to|filter by|filter on", t):
+        intent["task_type"] = "slice"
+        intent["time_scope"]["periods"] = []
+        intent["dimensions"] = ["region"] if intent["filters"].get("region") else ["category"]
         return intent
 
     if re.search(r"q4 data for corporate|q4.*corporate segment", t):

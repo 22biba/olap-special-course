@@ -2,7 +2,7 @@
 Report Generator Agent: formatted tables, totals, conditional formatting hints,
 executive summary, and follow-up suggestions.
 """
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from .base_agent import BaseAgent
 
@@ -21,13 +21,28 @@ class ReportGeneratorAgent(BaseAgent):
         formatting = {"rules": [{"columns": growth_cols, "positive": "green", "negative": "red"}]} if growth_cols else {}
         summary = self._summary(data, measure, intent)
         follow_up_suggestions = self._follow_up_suggestions(data, measure, task_type, dim, intent)
-        return {
+        filters = intent.get("filters") or {}
+        scope_parts = []
+        if filters.get("date_year"):
+            scope_parts.append(str(filters["date_year"]))
+        if filters.get("date_quarter"):
+            scope_parts.append(str(filters["date_quarter"]))
+        if filters.get("segment"):
+            scope_parts.append(f"segment={filters['segment']}")
+        if filters.get("region"):
+            scope_parts.append(f"region={filters['region']}")
+        if filters.get("category"):
+            scope_parts.append(f"category={filters['category']}")
+        out = {
             "table": data,
             "totals": {measure: total},
             "formatting": formatting,
             "summary": summary,
             "follow_up_suggestions": follow_up_suggestions,
         }
+        if scope_parts:
+            out["filters_applied"] = ", ".join(scope_parts)
+        return out
 
     def _follow_up_suggestions(
         self,
@@ -83,10 +98,24 @@ class ReportGeneratorAgent(BaseAgent):
             if k != "row" and isinstance(v, (int, float))
         )
 
-    def _summary(self, data: List[Dict[str, Any]], measure: str, intent: Optional[Dict[str, Any]] = None) -> str:
+    def _summary(self, data: List[Dict[str, Any]], measure: str, intent: Dict[str, Any] = None) -> str:
         intent = intent or {}
+        filters = intent.get("filters") or {}
+        scope_parts = []
+        if filters.get("date_year"):
+            scope_parts.append(str(filters["date_year"]))
+        if filters.get("date_quarter"):
+            scope_parts.append(filters["date_quarter"])
+        if filters.get("segment"):
+            scope_parts.append(f"segment={filters['segment']}")
+        if filters.get("region"):
+            scope_parts.append(f"region={filters['region']}")
+        if filters.get("category"):
+            scope_parts.append(f"category={filters['category']}")
+        scope = f" ({', '.join(scope_parts)})" if scope_parts else ""
+
         if not data:
-            return "No data for the selected filters."
+            return f"No data for the selected filters{scope}."
         pct_col = next((k for k in (data[0].keys() if data else []) if str(k).endswith("_pct")), None)
         if pct_col:
             try:
@@ -106,4 +135,5 @@ class ReportGeneratorAgent(BaseAgent):
         desc = ", ".join(f"{k}={top[k]}" for k in dims[:3] if top.get(k) is not None)
         val = float(top.get(measure) or 0)
         prefix = "Lowest" if worst else "Highest"
-        return f"{prefix} {measure}: {val:.2f} for {desc}." if desc else f"{prefix} {measure}: {val:.2f}."
+        base = f"{prefix} {measure}: {val:.2f} for {desc}." if desc else f"{prefix} {measure}: {val:.2f}."
+        return f"{base} Filtered to{scope}." if scope else base
