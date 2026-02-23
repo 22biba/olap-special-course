@@ -84,7 +84,9 @@ After a query you see:
 | POST | `/analytics/query` | Same as `/query`. |
 | POST | `/kpi` | Same input; response focused on KPI data and best performer. |
 | POST | `/report` | Same input; response focused on report (summary, totals, table). |
-| GET | `/docs` | OpenAPI/Swagger UI. |
+| GET | `/docs` | Swagger UI (interactive API docs). |
+| GET | `/redoc` | ReDoc (alternative API docs). |
+| GET | `/openapi.json` | OpenAPI JSON spec. |
 
 **Example body (structured):**
 

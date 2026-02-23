@@ -12,15 +12,24 @@ load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from nl_parser import parse_natural_language
 from orchestrator.planner import Planner
 
 app = FastAPI(
-    title="OLAP BI Platform",
-    description="Tier 3 – AI-powered Business Intelligence with multi-agent OLAP analysis. OpenAPI: /docs",
+    title="OLAP BI Platform API",
+    description="""Tier 3 – AI-powered Business Intelligence with multi-agent OLAP analysis.
+
+**Swagger UI:** `/docs`  
+**ReDoc:** `/redoc`  
+**OpenAPI JSON spec:** `/openapi.json`
+
+Features: natural language queries, slice/dice/pivot, drill-down/roll-up, KPI calculations, reports.""",
     version="1.0.0",
+    docs_url="/docs",
+    redoc_url="/redoc",
+    openapi_url="/openapi.json",
 )
 
 app.add_middleware(
@@ -35,8 +44,17 @@ planner = Planner()
 
 
 class BIQueryRequest(BaseModel):
-    natural_language_query: Optional[str] = None
-    conversation_history: Optional[List[Dict[str, Any]]] = None
+    """Request body for BI query endpoints. Use natural language or structured fields."""
+
+    natural_language_query: Optional[str] = Field(
+        default=None,
+        description='Natural language question, e.g. "Compare Q3 vs Q4 2024 by region"',
+        examples=["Compare Q3 vs Q4 2024 by region", "Top 5 regions by revenue"],
+    )
+    conversation_history: Optional[List[Dict[str, Any]]] = Field(
+        default=None,
+        description="Optional conversation history for context",
+    )
 
 
 class BIQueryResponse(BaseModel):
@@ -60,24 +78,35 @@ def _get_intent(payload: BIQueryRequest) -> tuple[Dict[str, Any], List[Dict[str,
     }, history
 
 
-@app.get("/")
+@app.get("/", tags=["Health"])
 def root():
+    """Service info and links to Swagger/API docs."""
     return {
         "message": "OLAP BI Platform API",
-        "docs": "/docs",
-        "endpoints": ["POST /query", "POST /kpi", "POST /report"],
+        "swagger": "/docs",
+        "redoc": "/redoc",
+        "openapi_spec": "/openapi.json",
+        "endpoints": ["POST /query", "POST /analytics/query", "POST /kpi", "POST /report"],
     }
 
 
-@app.post("/query", response_model=BIQueryResponse)
+@app.post("/query", response_model=BIQueryResponse, tags=["Query"])
 async def query(payload: BIQueryRequest) -> BIQueryResponse:
-    """Main NL endpoint: natural-language query; returns full agent pipeline result."""
+    """Main endpoint: natural-language or structured query; returns full pipeline (cube, KPI, drill, report)."""
     intent, history = _get_intent(payload)
     result = planner.handle_query(intent, conversation_history=history)
     return BIQueryResponse(result=result)
 
 
-@app.post("/kpi", response_model=BIQueryResponse)
+@app.post("/analytics/query", response_model=BIQueryResponse, tags=["Query"])
+async def analytics_query(payload: BIQueryRequest) -> BIQueryResponse:
+    """Alias for /query. Same request/response."""
+    intent, history = _get_intent(payload)
+    result = planner.handle_query(intent, conversation_history=history)
+    return BIQueryResponse(result=result)
+
+
+@app.post("/kpi", response_model=BIQueryResponse, tags=["KPI"])
 async def kpi(payload: BIQueryRequest) -> BIQueryResponse:
     """Return KPI-focused result: kpi_data, best_performer, and minimal report."""
     intent, history = _get_intent(payload)
@@ -89,7 +118,7 @@ async def kpi(payload: BIQueryRequest) -> BIQueryResponse:
     })
 
 
-@app.post("/report", response_model=BIQueryResponse)
+@app.post("/report", response_model=BIQueryResponse, tags=["Report"])
 async def report(payload: BIQueryRequest) -> BIQueryResponse:
     """Return report-only: executive summary, totals, formatting, formatted table, follow-up suggestions."""
     intent, history = _get_intent(payload)

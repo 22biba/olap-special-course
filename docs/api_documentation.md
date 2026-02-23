@@ -1,8 +1,12 @@
 # API Documentation
 
-The API is built with **FastAPI**. Interactive OpenAPI (Swagger) docs are available at:
+The API is built with **FastAPI**. Swagger/OpenAPI documentation is available when the backend is running:
 
-- **http://localhost:8000/docs** (when the backend is running)
+| UI | URL |
+|----|-----|
+| **Swagger UI** | http://localhost:8000/docs |
+| **ReDoc** | http://localhost:8000/redoc |
+| **OpenAPI JSON spec** | http://localhost:8000/openapi.json |
 
 ## Endpoints
 

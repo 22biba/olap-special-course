@@ -12,6 +12,8 @@ DIM_MAP = {
     "date_year": "dd.year",
     "date_quarter": "dd.quarter",
     "date_month": "dd.month",
+    "date_month_name": "dd.month_name",
+    "month_name": "dd.month_name",
     "date_day": "dd.day",
     "region": "dg.region",
     "country": "dg.country",
@@ -19,6 +21,9 @@ DIM_MAP = {
     "subcategory": "dp.subcategory",
     "segment": "dc.segment",
 }
+
+# Measures that use AVG instead of SUM when aggregating
+AVG_MEASURES = {"unit_price", "profit_margin"}
 
 
 def _normalize_filters(filters: Dict[str, Any]) -> Dict[str, Any]:
@@ -63,7 +68,9 @@ def _build_fact_query(
             else:
                 select_parts.append(f"{e} AS {d}")
                 group_parts.append(e)
-    select_sql = ", ".join(select_parts + [f"SUM(fs.{measure}) AS {measure}"]) if select_parts else f"SUM(fs.{measure}) AS {measure}"
+    agg_fn = "AVG" if measure in AVG_MEASURES else "SUM"
+    measure_expr = f"{agg_fn}(fs.{measure}) AS {measure}"
+    select_sql = ", ".join(select_parts + [measure_expr]) if select_parts else measure_expr
     filters = _normalize_filters(filters)
     where_parts, params = [], []
     for k, v in filters.items():
@@ -81,7 +88,8 @@ def _build_fact_query(
     group_sql = "GROUP BY " + ", ".join(group_parts) if group_parts else ""
     having_sql = ""
     if having_min is not None and group_parts:
-        having_sql = f" HAVING SUM(fs.{measure}) > {float(having_min)}"
+        h_agg = "AVG" if measure in AVG_MEASURES else "SUM"
+        having_sql = f" HAVING {h_agg}(fs.{measure}) > {float(having_min)}"
     sql = f"""
         SELECT {select_sql}
         FROM fact_sales fs

@@ -46,8 +46,8 @@ Extract a structured BI intent from the user's question. Return valid JSON only.
 Fields:
 - task_type: "aggregate"|"compare"|"top_n"|"slice"|"dice"|"pivot"|"drill_down"|"roll_up"
 - time_scope: { "granularity": "year|quarter|month", "periods": [] or ["2024-Q3","2024-Q4"] }
-- dimensions: ["region"|"country"|"category"|"segment"|"date_year"] or [] for aggregate
-- measure: "revenue"|"profit"|"quantity"
+- dimensions: ["region"|"country"|"category"|"segment"|"date_year"|"date_month_name"] or [] for aggregate
+- measure: "revenue"|"profit"|"quantity"|"unit_price"|"profit_margin"
 - filters: {"region": "Asia Pacific", "date_year": 2023} - extract ALL filters from the question
 - having_min: number e.g. 500 for "revenue > 500" or "revenue > $500"
 - n: integer for top_n (default 5)
@@ -313,6 +313,8 @@ def _parse_with_keywords(text: str) -> Dict[str, Any]:
             intent["dimensions"] = ["category"]
         if re.search(r"\bsegment|customer", t):
             intent["dimensions"] = ["segment"]
+        if re.search(r"\bmonth\s*name|month_name", t):
+            intent["dimensions"] = ["date_month_name"]
         if re.search(r"\bcorporate\b", t):
             intent["filters"]["segment"] = "Corporate"
         if re.search(r"\bconsumer\b", t):
@@ -326,6 +328,8 @@ def _parse_with_keywords(text: str) -> Dict[str, Any]:
         intent["measure"] = "revenue"
     if re.search(r"margin", t):
         intent["measure"] = "profit"
+    if re.search(r"\bunit\s*price|unit_price\b", t):
+        intent["measure"] = "unit_price"
 
     if re.search(r"show\s+q\d\s+data|q\d\s+data\s+for|only\s+q\d|q\d\s+only", t):
         q_match = re.search(r"q(\d)", t)

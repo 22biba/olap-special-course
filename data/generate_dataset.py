@@ -1,7 +1,7 @@
 """
 Generate Global Retail Sales CSV: 10k transactions, Jan 2022 - Dec 2024.
 Dimensions: date, region, country, category, subcategory, segment.
-Measures: quantity, revenue, cost, profit.
+Measures: quantity, unit_price, revenue, cost, profit.
 """
 import csv
 import random
@@ -43,6 +43,7 @@ def main():
         revenue = round(quantity * unit_price, 2)
         cost = round(revenue * random.uniform(0.4, 0.8), 2)
         profit = round(revenue - cost, 2)
+        profit_margin = round(profit / revenue, 4) if revenue else 0.0
         rows.append({
             "date": d.strftime("%Y-%m-%d"),
             "region": region,
@@ -51,9 +52,11 @@ def main():
             "subcategory": subcategory,
             "segment": segment,
             "quantity": quantity,
+            "unit_price": unit_price,
             "revenue": revenue,
             "cost": cost,
             "profit": profit,
+            "profit_margin": profit_margin,
         })
 
     OUTPUT.parent.mkdir(parents=True, exist_ok=True)
