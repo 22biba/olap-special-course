@@ -59,7 +59,3 @@ Optional: set `OPENAI_API_KEY` for LLM-based natural language parsing (copy `.en
 - **API:** FastAPI, Pydantic
 - **Database:** DuckDB (star schema)
 - **LLM:** OpenAI API for NL parsing when `OPENAI_API_KEY` is set; keyword fallback otherwise
-
-## License
-
-Use as required by your course or organization.
