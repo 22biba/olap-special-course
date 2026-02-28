@@ -40,6 +40,7 @@ Optional: set `OPENAI_API_KEY` for LLM-based natural language parsing (copy `.en
 | **Working demo** | [docs/WORKING_DEMO.md](docs/WORKING_DEMO.md) – run locally, sample questions, offline Swagger |
 | **Database schema** | [docs/DATABASE_ER.md](docs/DATABASE_ER.md) – ER diagram, table descriptions, DDL scripts |
 | **Agent specifications** | [docs/agent_specifications.md](docs/agent_specifications.md) – purpose, I/O, logic for each agent |
+| **Claude Conversation** | [claude-conversation.md](claude-conversation.md) – prompts used during development |
 
 ## Repository structure
 
